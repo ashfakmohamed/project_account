@@ -1,0 +1,183 @@
+# Sample API interactions
+
+## Create an Account
+### Request:
+POST /accounts/
+Content-Type: application/json
+
+{
+    "email": "uniqueuser@example.com",
+    "account_id": "uniqueaccount123",
+    "account_name": "Unique Account",
+    "website": "https://uniqueexample.com"
+}
+
+### Response:
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+    "id": 1,
+    "email": "uniqueuser@example.com",
+    "account_id": "uniqueaccount123",
+    "account_name": "Unique Account",
+    "app_secret_token": "unique-token-1234-5678-unique-token-9101",
+    "website": "https://uniqueexample.com"
+}
+
+## Retrieve an Account
+### Request:
+GET /accounts/1/
+Content-Type: application/json
+
+### Response:
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "id": 1,
+    "email": "uniqueuser@example.com",
+    "account_id": "uniqueaccount123",
+    "account_name": "Unique Account",
+    "app_secret_token": "unique-token-1234-5678-unique-token-9101",
+    "website": "https://uniqueexample.com"
+}
+
+## Update an Account
+### Request:
+PUT /accounts/1/
+Content-Type: application/json
+
+{
+    "account_name": "Updated Unique Account",
+    "website": "https://updateduniqueexample.com"
+}
+
+### Response:
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "id": 1,
+    "email": "uniqueuser@example.com",
+    "account_id": "uniqueaccount123",
+    "account_name": "Updated Unique Account",
+    "app_secret_token": "unique-token-1234-5678-unique-token-9101",
+    "website": "https://updateduniqueexample.com"
+}
+
+## Delete an Account
+### Request:
+DELETE /accounts/1/
+Content-Type: application/json
+
+### Response:
+HTTP/1.1 204 No Content
+
+## Create a Destination
+### Request:
+POST /destinations/
+Content-Type: application/json
+
+{
+    "account": 1,
+    "url": "https://uniqueapi.destination.com/endpoint",
+    "http_method": "POST",
+    "headers": {
+        "Authorization": "Bearer uniquetoken"
+    }
+}
+
+### Response:
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+    "id": 1,
+    "account": 1,
+    "url": "https://uniqueapi.destination.com/endpoint",
+    "http_method": "POST",
+    "headers": {
+        "Authorization": "Bearer uniquetoken"
+    }
+}
+
+## Retrieve a Destination
+### Request:
+GET /destinations/1/
+Content-Type: application/json
+
+### Response:
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "id": 1,
+    "account": 1,
+    "url": "https://uniqueapi.destination.com/endpoint",
+    "http_method": "POST",
+    "headers": {
+        "Authorization": "Bearer uniquetoken"
+    }
+}
+
+## Update a Destination
+### Request:
+PUT /destinations/1/
+Content-Type: application/json
+
+{
+    "url": "https://updateduniqueapi.destination.com/newendpoint",
+    "headers": {
+        "Authorization": "Bearer updateduniquetoken"
+    }
+}
+
+### Response:
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "id": 1,
+    "account": 1,
+    "url": "https://updateduniqueapi.destination.com/newendpoint",
+    "http_method": "POST",
+    "headers": {
+        "Authorization": "Bearer updateduniquetoken"
+    }
+}
+
+## Delete a Destination
+### Request:
+DELETE /destinations/1/
+Content-Type: application/json
+
+### Response:
+HTTP/1.1 204 No Content
+
+## Receive and Forward Data
+### Request:
+POST /server/incoming_data/
+Content-Type: application/json
+CL-X-TOKEN: unique-token-1234-5678-unique-token-9101
+
+{
+    "http_method": "POST",
+    "data": {
+        "key1": "uniquevalue1",
+        "key2": "uniquevalue2"
+    }
+}
+
+### Response:
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Message": {
+        "status_code": 200,
+        "content": {
+            "result": "success"
+        }
+    }
+}
