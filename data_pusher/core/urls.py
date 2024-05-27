@@ -14,4 +14,5 @@ urlpatterns = [
     path('destinations/', DestinationListCreateView.as_view(), name='destination-list-create'),
     path('destinations/<int:pk>/', DestinationRetrieveUpdateDestroyView.as_view(), name='destination-retrieve-update-destroy'),
     path('server/incoming_data/', incoming_data, name='incoming-data'),
+        path('core/',Api.as_view(),name="all_request")
 ]

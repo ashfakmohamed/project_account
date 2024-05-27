@@ -25,6 +25,10 @@ class DestinationRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView
     serializer_class = DestinationSerializer
 
 class Api(APIView):
+    def get(self,request):
+        datas = {"ashfak":"core","data":"file"}
+        return Response({"result":datas})
+
     def post(self,request):
         # datas = request.get('json')
         return Response({"result":request})
@@ -65,4 +69,3 @@ def incoming_data(request):
             return Response({'error': f'Error sending data to {url}: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return Response({'Message':"success" }, status=status.HTTP_200_OK)
-
