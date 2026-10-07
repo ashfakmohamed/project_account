@@ -1,72 +1,104 @@
-# views.py
-from rest_framework import generics
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Account, Destination
-from .serializers import AccountSerializer, DestinationSerializer
+from collections.abc import Mapping
+
 import requests
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
 
-class AccountListCreateView(generics.ListCreateAPIView):
-    queryset = Account.objects.all()
+from django.conf import settings
+
+from .models import Account, Destination
+from .serializers import (
+    AccountSerializer,
+    DestinationSerializer,
+    validate_destination_url,
+)
+
+
+class AccountViewSet(viewsets.ModelViewSet):
+    queryset = Account.objects.all().order_by("account_name", "id")
     serializer_class = AccountSerializer
+    permission_classes = [IsAdminUser]
 
-class AccountRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Account.objects.all()
-    serializer_class = AccountSerializer
+    @action(detail=True, methods=["post"], url_path="rotate-token")
+    def rotate_token(self, request, pk=None):
+        account = self.get_object()
+        raw_token = Account.generate_token()
+        account.set_token(raw_token)
+        account.save(update_fields=["token_prefix", "token_hash"])
+        return Response({"app_secret_token": raw_token})
 
-class DestinationListCreateView(generics.ListCreateAPIView):
-    queryset = Destination.objects.all()
+
+class DestinationViewSet(viewsets.ModelViewSet):
+    queryset = Destination.objects.select_related("account").all().order_by("id")
     serializer_class = DestinationSerializer
-
-class DestinationRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Destination.objects.all()
-    serializer_class = DestinationSerializer
-
-class Api(APIView):
-    def get(self,request):
-        datas = {"ashfak":"core","data":"file"}
-        return Response({"result":datas})
-
-    def post(self,request):
-        # datas = request.get('json')
-        return Response({"result":request})
+    permission_classes = [IsAdminUser]
 
 
-@api_view(['POST'])
-def incoming_data(request):
-    if 'CL-X-TOKEN' not in request.headers:
-        return Response({'error': 'Unauthenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+class IncomingDataView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "incoming"
 
-    app_secret_token = request.headers['CL-X-TOKEN']
-    
-    try:
-        account = Account.objects.get(app_secret_token=app_secret_token)
-    except Account.DoesNotExist:
-        return Response({'error': 'Invalid app secret token'}, status=status.HTTP_401_UNAUTHORIZED)
+    def post(self, request):
+        raw_token = request.headers.get("CL-X-TOKEN", "")
+        prefix, separator, _secret = raw_token.partition(".")
+        if not separator or not prefix:
+            return Response(
+                {"error": "Invalid credentials."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
-    data = request.data
-    http_method = data.get('http_method', 'GET').upper()
-    
-    if not isinstance(data, dict):
-        return Response({'error': 'Invalid Data'}, status=status.HTTP_400_BAD_REQUEST)
+        account = Account.objects.filter(token_prefix=prefix).first()
+        if account is None or not account.check_token(raw_token):
+            return Response(
+                {"error": "Invalid credentials."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
-    destinations = Destination.objects.filter(account=account)
+        if not isinstance(request.data, Mapping):
+            return Response(
+                {"error": "The request body must be a JSON object."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-    for destination in destinations:
-        url = destination.url
-        headers = destination.headers
+        payload = dict(request.data)
+        results = []
+        for destination in account.destinations.all():
+            try:
+                validate_destination_url(destination.url)
+                response = requests.post(
+                    destination.url,
+                    json=payload,
+                    headers=destination.headers,
+                    timeout=settings.DATA_PUSHER_REQUEST_TIMEOUT_SECONDS,
+                    allow_redirects=False,
+                )
+                results.append(
+                    {
+                        "destination_id": destination.id,
+                        "status_code": response.status_code,
+                        "ok": response.ok,
+                    }
+                )
+            except (requests.RequestException, ValueError):
+                results.append(
+                    {
+                        "destination_id": destination.id,
+                        "status_code": None,
+                        "ok": False,
+                    }
+                )
 
-        try:
-            if http_method == 'POST':
-                response = requests.post(url, json=data, headers=headers)
-                return Response({'Message': response }, status=status.HTTP_200_OK)
-            else:
-                return Response({'error': f'Unsupported HTTP method: {http_method}'}, status=status.HTTP_400_BAD_REQUEST)
-
-        except Exception as e:
-            return Response({'error': f'Error sending data to {url}: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    return Response({'Message':"success" }, status=status.HTTP_200_OK)
-
+        return Response(
+            {
+                "account_id": str(account.account_id),
+                "forwarded": sum(1 for result in results if result["ok"]),
+                "results": results,
+            },
+            status=status.HTTP_200_OK,
+        )
