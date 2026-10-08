@@ -1,5 +1,10 @@
 # Data Pusher API
 
+<!-- profile-upgrade -->
+[![Django CI](https://github.com/ashfakmohamed/django-data-pusher-api/actions/workflows/ci.yml/badge.svg)](https://github.com/ashfakmohamed/django-data-pusher-api/actions/workflows/ci.yml)
+
+**Stack:** Python · Django · Django REST Framework · Webhooks
+
 A secured Django REST Framework service that receives JSON payloads for an account and forwards them to administrator-configured HTTPS destinations.
 
 ## Security model
@@ -51,3 +56,10 @@ The raw account token is returned only at account creation or rotation. Store it
 
     python data_pusher/manage.py check
     python data_pusher/manage.py test
+
+## Engineering quality
+
+- GitHub Actions runs Django checks and the automated test suite on every push.
+- Runtime configuration is documented through `.env.example`; secrets are not committed.
+- Local databases, uploaded media, caches, and virtual environments are excluded from version control.
+- Security-sensitive behavior and authorization rules are documented above.
